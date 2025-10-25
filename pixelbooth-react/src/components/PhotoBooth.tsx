@@ -126,12 +126,18 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       if (state === 'COUNTDOWN' || state === 'CAPTURING') {
         p.fill(255); // White text
         p.stroke(0); // Black outline
-        p.strokeWeight(12);
+        p.strokeWeight(8);
         p.textAlign(p.CENTER, p.CENTER);
-        p.textSize(225);
+        
+        // Adjust font size based on text length
+        if (countdownText.includes('SNAP')) {
+          p.textSize(80); // Much smaller for "SNAP 1/3" text
+        } else {
+          p.textSize(150); // Smaller for countdown numbers
+        }
         
         const centerX = p.width / 2;
-        const centerY = p.height * 0.4; // 40% from top
+        const centerY = p.height * 0.5; // 50% from top (more centered)
         
         p.text(countdownText, centerX, centerY);
         
