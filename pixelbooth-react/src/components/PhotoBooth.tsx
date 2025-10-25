@@ -1,6 +1,7 @@
 import { useRef, forwardRef, useImperativeHandle } from 'react';
 import Sketch from 'react-p5';
 import { orderedDither } from '../utils/dithering';
+import { useAudio } from '../hooks/useAudio';
 import type { AppState } from './Controls';
 
 interface PhotoBoothProps {
@@ -36,7 +37,9 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   const framesRef = useRef<any[]>([]);
   const finalCompositeRef = useRef<any>(null);
   const lastShotAtRef = useRef<number>(0);
+  const { initializeAudio, playCountdownBeep, playCaptureSound } = useAudio();
   const countdownEndAtRef = useRef<number>(0);
+  const lastBeepTimeRef = useRef<number>(0);
   const p5InstanceRef = useRef<any>(null);
   const shotsNeeded = 3;
   const previewWidth = 500;
@@ -45,6 +48,9 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
 
   const setup = (p: any, canvasParentRef: Element) => {
     p5InstanceRef.current = p;
+    
+    // Initialize audio
+    initializeAudio();
     
     // Create canvas with willReadFrequently for better performance
     const canvas = p.createCanvas(previewWidth, previewHeight);
@@ -188,6 +194,13 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     
     if (timeLeft > 0) {
       onCountdownTextUpdate(timeLeft.toString());
+      
+      // Play beep sound only once per countdown number
+      const now = p.millis();
+      if (now - lastBeepTimeRef.current > 800) { // Prevent multiple beeps
+        playCountdownBeep();
+        lastBeepTimeRef.current = now;
+      }
     } else if (timeLeft <= 0 && state === 'COUNTDOWN') {
       onCountdownTextUpdate('SMILE!');
       onStateChange('CAPTURING');
@@ -228,6 +241,9 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         onFramesUpdate([...framesRef.current]);
         
         console.log(`Foto ${framesRef.current.length} diambil.`);
+
+        // Play capture sound
+        playCaptureSound();
 
         onCountdownTextUpdate(`SNAP ${framesRef.current.length}/${shotsNeeded}`);
         setTimeout(() => {

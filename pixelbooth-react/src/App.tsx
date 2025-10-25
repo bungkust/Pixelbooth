@@ -92,7 +92,7 @@ function App() {
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Docket Booth Print</title>
+          <title>Pixel Booth Print</title>
           <style>
             @page {
               size: A4;
@@ -132,9 +132,9 @@ function App() {
         </head>
         <body>
           <div class="print-container">
-            <img src="${dataURL}" alt="Docket Booth Photo" class="print-image" />
+            <img src="${dataURL}" alt="Pixel Booth Photo" class="print-image" />
             <div class="print-footer">
-              DOCKET BOOTH<br/>
+              PIXEL BOOTH<br/>
               ${new Date().toLocaleDateString('id-ID')}
             </div>
           </div>
@@ -208,7 +208,7 @@ function App() {
       {appState !== 'IDLE' && (
         <>
           <div className="app-header">
-            <h1 className="app-title">DOCKET BOOTH</h1>
+            <h1 className="app-title">PIXEL BOOTH</h1>
             <p className="app-description">
               SNAP & PRINT! PRESS START FOR A QUICK<br/>
               PHOTO SESSION, COUNTDOWN BEGINS IN...<br/>
@@ -241,7 +241,7 @@ function App() {
           
           <div className="app-footer">
             <div className="stars">****</div>
-            <div>THANK YOU FOR SMILING WITH DOCKET BOOTH</div>
+            <div>THANK YOU FOR SMILING WITH PIXEL BOOTH</div>
           </div>
         </>
       )}

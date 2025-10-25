@@ -14,7 +14,7 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   return (
     <div id="permission-gate">
       <div className="permission-content">
-        <h1>Docket Booth</h1>
+        <h1>Pixel Booth</h1>
         <p>Izinkan akses kamera untuk memulai sesi foto Anda.</p>
         <button 
           id="permissionBtn" 

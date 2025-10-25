@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Docket Booth',
-        short_name: 'Docket',
+        name: 'Pixel Booth',
+        short_name: 'Pixel',
         description: 'B&W Dithered Photo Booth (MVP)',
         theme_color: '#000000',
         background_color: '#ffffff',
@@ -20,13 +20,13 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'https://placehold.co/192x192/000000/FFFFFF?text=DOCKET',
+            src: 'https://placehold.co/192x192/000000/FFFFFF?text=PIXEL',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: 'https://placehold.co/512x512/000000/FFFFFF?text=DOCKET',
+            src: 'https://placehold.co/512x512/000000/FFFFFF?text=PIXEL',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

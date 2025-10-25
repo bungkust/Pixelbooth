@@ -41,7 +41,7 @@ export function composeResult(p: any, frames: any[]): any {
   
   const tgl = new Date();
   const dateStr = `${tgl.getFullYear()}.${(tgl.getMonth()+1).toString().padStart(2,'0')}.${tgl.getDate().toString().padStart(2,'0')}`;
-  const footerText = `DOCKET BOOTH // ${dateStr}`;
+  const footerText = `PIXEL BOOTH // ${dateStr}`;
   
   out.text(footerText, W / 2, footerY + (footerH / 2));
 
