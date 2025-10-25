@@ -1,2 +1,0 @@
-# Pixelbooth
-belom ada
