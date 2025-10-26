@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { PhotoBooth, type PhotoBoothRef } from './PhotoBooth';
 import { Controls, type AppState } from './Controls';
+import { PreviewModal } from './PreviewModal';
 import { useWakeLock } from '../hooks/useWakeLock';
 
 interface Template {
@@ -26,6 +27,8 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
   const [, setFinalComposite] = useState<any | null>(null);
   const [, setCanvasSize] = useState({ width: 640, height: 480 });
   const [, setIsReviewMode] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [highResImageDataURL, setHighResImageDataURL] = useState<string | null>(null);
   
   const photoBoothRef = useRef<PhotoBoothRef>(null);
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
@@ -47,6 +50,21 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
 
   const handleRetake = () => {
     onBackToTemplate();
+  };
+
+  const handleCanvasClick = () => {
+    if (appState === 'REVIEW' && photoBoothRef.current) {
+      const highResDataURL = photoBoothRef.current.getFinalCompositeDataURL();
+      if (highResDataURL) {
+        setHighResImageDataURL(highResDataURL);
+        setIsModalOpen(true);
+      }
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setHighResImageDataURL(null);
   };
 
   const handleDownload = () => {
@@ -175,6 +193,16 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
 
   const handleCanvasModeChange = (isReview: boolean) => {
     setIsReviewMode(isReview);
+    
+    // Add/remove review-mode class to canvas wrap
+    const canvasWrap = document.getElementById('canvas-wrap');
+    if (canvasWrap) {
+      if (isReview) {
+        canvasWrap.classList.add('review-mode');
+      } else {
+        canvasWrap.classList.remove('review-mode');
+      }
+    }
   };
 
   return (
@@ -190,18 +218,20 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
         </p>
       </div>
       
-      <PhotoBooth
-        ref={photoBoothRef}
-        state={appState}
-        countdownText={countdownText}
-        template={template}
-        onStateChange={handleStateChange}
-        onFramesUpdate={handleFramesUpdate}
-        onFinalCompositeUpdate={handleFinalCompositeUpdate}
-        onCountdownTextUpdate={handleCountdownTextUpdate}
-        onCanvasResize={handleCanvasResize}
-        onCanvasModeChange={handleCanvasModeChange}
-      />
+      <div onClick={handleCanvasClick}>
+        <PhotoBooth
+          ref={photoBoothRef}
+          state={appState}
+          countdownText={countdownText}
+          template={template}
+          onStateChange={handleStateChange}
+          onFramesUpdate={handleFramesUpdate}
+          onFinalCompositeUpdate={handleFinalCompositeUpdate}
+          onCountdownTextUpdate={handleCountdownTextUpdate}
+          onCanvasResize={handleCanvasResize}
+          onCanvasModeChange={handleCanvasModeChange}
+        />
+      </div>
       
       <div id="ui-overlay">
         <Controls
@@ -217,6 +247,13 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
         <div className="stars">****</div>
         <div>THANK YOU FOR SMILING WITH PIXEL BOOTH</div>
       </div>
+      
+      <PreviewModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        imageDataURL={highResImageDataURL}
+        templateName={template.name}
+      />
     </>
   );
 };

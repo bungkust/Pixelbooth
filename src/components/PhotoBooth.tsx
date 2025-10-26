@@ -49,7 +49,9 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   const pgPreviewRef = useRef<any>(null);
   const framesRef = useRef<any[]>([]);
   const finalCompositeRef = useRef<any>(null);
+  const finalCompositeHighResRef = useRef<any>(null);
   const lastShotAtRef = useRef<number>(0);
+  const isCapturingRef = useRef<boolean>(false);
   const { initializeAudio, playCountdownBeep, playCaptureSound } = useAudio();
   const countdownEndAtRef = useRef<number>(0);
   const lastBeepTimeRef = useRef<number>(0);
@@ -77,37 +79,27 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     pgPreviewRef.current = p.createGraphics(previewWidth, previewHeight);
 
     // Initialize video capture
-    const constraints = {
-      video: {
-        facingMode: 'user',
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      },
-      audio: false
-    };
-
-      videoRef.current = p.createCapture(constraints, () => {
-        console.log('Video stream acquired (audio: false).');
+    videoRef.current = p.createCapture(p.VIDEO, () => {
+      console.log('Video stream acquired.');
+      
+      if (videoRef.current) {
+        videoRef.current.size(previewWidth, previewHeight);
+        videoRef.current.hide();
+        console.log('Video resized to:', previewWidth, 'x', previewHeight);
         
-        if (videoRef.current) {
-          videoRef.current.size(previewWidth, previewHeight);
-          videoRef.current.hide();
-        }
+        // Handle video errors
+        videoRef.current.elt.onerror = (e: Event) => {
+          console.error("Error pada elemen video:", e);
+        };
+        videoRef.current.elt.onstalled = (e: Event) => {
+          console.warn("Video stream stalled:", e);
+        };
         
         // Start the draw loop when camera is ready
         p.loop();
         onStateChange('PREVIEW');
-      });
-
-    // Handle video errors
-    if (videoRef.current) {
-      videoRef.current.elt.onerror = (e: Event) => {
-        console.error("Error pada elemen video:", e);
-      };
-      videoRef.current.elt.onstalled = (e: Event) => {
-        console.warn("Video stream stalled:", e);
-      };
-    }
+      }
+    });
 
     p.noLoop(); // Don't start draw loop until camera is ready
   };
@@ -123,6 +115,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       return;
     }
 
+
     p.background(255); // White background
 
     if (['PREVIEW', 'COUNTDOWN', 'CAPTURING'].includes(state)) {
@@ -131,7 +124,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       const pgPreview = pgPreviewRef.current;
       
       // 1. Draw video to buffer
-      pgPreview.image(video, 0, 0, pgPreview.width, pgPreview.height);
+      pgPreview.image(video, 0, 0, previewWidth, previewHeight);
       // 2. Grayscale
       pgPreview.filter(p.GRAY);
       // 3. Bayer dithering for fast preview (only every few frames for performance)
@@ -224,33 +217,32 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   };
 
   const autoCaptureLoop = (p: any) => {
-    const now = p.millis();
+    if (isCapturingRef.current) return; // Prevent multiple calls
+    
+    isCapturingRef.current = true;
     const interval = 2500; // 2.5 second interval between photos
 
     if (framesRef.current.length < shotsNeeded && 
-        (now - lastShotAtRef.current > interval || lastShotAtRef.current === 0)) {
+        (p.millis() - lastShotAtRef.current > interval || lastShotAtRef.current === 0)) {
       
-      if (videoRef.current) {
-        // Capture raw image from video, not from preview
-        const rawShot = p.createImage(
-          videoRef.current.width, 
-          videoRef.current.height
-        );
+      if (videoRef.current && videoRef.current.width > 0 && videoRef.current.height > 0) {
+        // Capture raw image from video using consistent size
+        const rawShot = p.createImage(previewWidth, previewHeight);
         rawShot.copy(
           videoRef.current, 
           0, 0, 
-          videoRef.current.width, 
-          videoRef.current.height, 
+          previewWidth, 
+          previewHeight, 
           0, 0, 
-          rawShot.width, 
-          rawShot.height
+          previewWidth, 
+          previewHeight
         );
         
         // Convert to grayscale
         rawShot.filter(p.GRAY);
         
         framesRef.current.push(rawShot);
-        lastShotAtRef.current = now;
+        lastShotAtRef.current = p.millis();
         onFramesUpdate([...framesRef.current]);
         
         console.log(`Foto ${framesRef.current.length} diambil.`);
@@ -270,45 +262,34 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         }
       }
     }
+    
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isCapturingRef.current = false;
+    }, 100);
   };
 
   const composeResult = (p: any) => {
     console.log('Composing result...');
     
-    // Import composeResult function dynamically to avoid circular dependency
-    import('../utils/photoComposer').then(async ({ composeResult: compose }) => {
-      const composite = await compose(p, framesRef.current, template);
-      finalCompositeRef.current = composite;
-      onFinalCompositeUpdate(composite);
+    // Import both compose functions dynamically to avoid circular dependency
+    import('../utils/photoComposer').then(async ({ composeResultForReview, composeResult }) => {
+      // Create review version (smaller, for display)
+      const compositeReview = await composeResultForReview(p, framesRef.current, template);
+      finalCompositeRef.current = compositeReview;
+      onFinalCompositeUpdate(compositeReview);
+
+      // Create high-res version (for download/print)
+      const compositeHighRes = await composeResult(p, framesRef.current, template);
+      finalCompositeHighResRef.current = compositeHighRes;
 
       // Switch to REVIEW state
       onStateChange('REVIEW');
       onCountdownTextUpdate('');
       
-      // Resize canvas for review mode based on template
-      const margin = 24;
-      const gap = 16;
-      const cellW = finalWidth - margin * 2;
-      const cellH = cellW;
-      const footerH = 80;
-      
-      let H: number;
-      if (template.layout === 'vertical') {
-        H = margin + 120 + (cellH * template.photoCount) + (gap * (template.photoCount - 1)) + footerH + margin;
-      } else if (template.layout === 'horizontal') {
-        const photoWidth = (finalWidth - margin * 2 - gap * (template.photoCount - 1)) / template.photoCount;
-        H = margin + 120 + photoWidth + footerH + margin;
-      } else if (template.layout === 'grid') {
-        const cols = template.photoCount === 4 ? 2 : template.photoCount === 6 ? 3 : 2;
-        const rows = Math.ceil(template.photoCount / cols);
-        const photoWidth = (finalWidth - margin * 2 - gap * (cols - 1)) / cols;
-        H = margin + 120 + (photoWidth * rows) + (gap * (rows - 1)) + footerH + margin;
-      } else {
-        H = margin + 120 + (cellH * template.photoCount) + (gap * (template.photoCount - 1)) + footerH + margin;
-      }
-      
-      p.resizeCanvas(finalWidth, H);
-      onCanvasResize(finalWidth, H);
+      // Keep canvas size fixed for review mode (same as preview)
+      p.resizeCanvas(previewWidth, previewHeight);
+      onCanvasResize(previewWidth, previewHeight);
       onCanvasModeChange(true);
       
       console.log('Composing complete. Ready for review.');
@@ -329,6 +310,8 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       if (p5InstanceRef.current) {
         framesRef.current = [];
         finalCompositeRef.current = null;
+        finalCompositeHighResRef.current = null;
+        isCapturingRef.current = false;
         onFramesUpdate([]);
         onFinalCompositeUpdate(null);
         
@@ -340,17 +323,17 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       }
     },
     downloadComposite: () => {
-      if (p5InstanceRef.current && finalCompositeRef.current) {
+      if (p5InstanceRef.current && finalCompositeHighResRef.current) {
         const timestamp = new Date().toISOString()
           .replace(/[-:.]/g, '')
           .substring(0, 15);
         const filename = `booth-${timestamp}.png`;
-        p5InstanceRef.current.save(finalCompositeRef.current, filename);
+        p5InstanceRef.current.save(finalCompositeHighResRef.current, filename);
       }
     },
     getFinalCompositeDataURL: () => {
-      if (finalCompositeRef.current) {
-        return finalCompositeRef.current.canvas.toDataURL('image/png');
+      if (finalCompositeHighResRef.current) {
+        return finalCompositeHighResRef.current.canvas.toDataURL('image/png');
       }
       return null;
     }
