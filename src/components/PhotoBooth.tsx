@@ -4,9 +4,21 @@ import { orderedDither } from '../utils/dithering';
 import { useAudio } from '../hooks/useAudio';
 import type { AppState } from './Controls';
 
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  width: number; // mm
+  height: number; // mm
+  photoCount: number;
+  layout: 'vertical' | 'horizontal' | 'grid';
+  thermalSize: '58mm' | '80mm';
+}
+
 interface PhotoBoothProps {
   state: AppState;
   countdownText: string;
+  template: Template;
   onStateChange: (newState: AppState) => void;
   onFramesUpdate: (frames: any[]) => void;
   onFinalCompositeUpdate: (composite: any | null) => void;
@@ -25,6 +37,7 @@ export interface PhotoBoothRef {
 export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   state,
   countdownText,
+  template,
   onStateChange,
   onFramesUpdate,
   onFinalCompositeUpdate,
@@ -41,7 +54,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   const countdownEndAtRef = useRef<number>(0);
   const lastBeepTimeRef = useRef<number>(0);
   const p5InstanceRef = useRef<any>(null);
-  const shotsNeeded = 3;
+  const shotsNeeded = template.photoCount;
   const previewWidth = 500;
   const previewHeight = 375;
   const finalWidth = 1024;
@@ -263,8 +276,8 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     console.log('Composing result...');
     
     // Import composeResult function dynamically to avoid circular dependency
-    import('../utils/photoComposer').then(({ composeResult: compose }) => {
-      const composite = compose(p, framesRef.current);
+    import('../utils/photoComposer').then(async ({ composeResult: compose }) => {
+      const composite = await compose(p, framesRef.current, template);
       finalCompositeRef.current = composite;
       onFinalCompositeUpdate(composite);
 
@@ -272,13 +285,27 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       onStateChange('REVIEW');
       onCountdownTextUpdate('');
       
-      // Resize canvas for review mode
+      // Resize canvas for review mode based on template
       const margin = 24;
       const gap = 16;
       const cellW = finalWidth - margin * 2;
       const cellH = cellW;
       const footerH = 80;
-      const H = margin + (cellH * 3) + (gap * 2) + footerH + margin;
+      
+      let H: number;
+      if (template.layout === 'vertical') {
+        H = margin + 120 + (cellH * template.photoCount) + (gap * (template.photoCount - 1)) + footerH + margin;
+      } else if (template.layout === 'horizontal') {
+        const photoWidth = (finalWidth - margin * 2 - gap * (template.photoCount - 1)) / template.photoCount;
+        H = margin + 120 + photoWidth + footerH + margin;
+      } else if (template.layout === 'grid') {
+        const cols = template.photoCount === 4 ? 2 : template.photoCount === 6 ? 3 : 2;
+        const rows = Math.ceil(template.photoCount / cols);
+        const photoWidth = (finalWidth - margin * 2 - gap * (cols - 1)) / cols;
+        H = margin + 120 + (photoWidth * rows) + (gap * (rows - 1)) + footerH + margin;
+      } else {
+        H = margin + 120 + (cellH * template.photoCount) + (gap * (template.photoCount - 1)) + footerH + margin;
+      }
       
       p.resizeCanvas(finalWidth, H);
       onCanvasResize(finalWidth, H);

@@ -68,6 +68,13 @@ html, body {
   text-align: center;
 }
 
+.template-info {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
 /* 1. Permission Gate */
 #permission-gate {
   position: fixed;
@@ -132,6 +139,181 @@ html, body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Template Selector */
+#template-selector {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  margin: 0;
+  background: var(--c-white);
+  z-index: 1000;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.template-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 800px;
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+#template-selector h1 {
+  font-size: 48px;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+
+.template-subtitle {
+  font-size: 24px;
+  margin-bottom: 40px;
+  color: #666;
+}
+
+.template-dropdown-container {
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 30px;
+}
+
+.dropdown-label {
+  display: block;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.template-dropdown {
+  width: 100%;
+  font-family: var(--font-main);
+  font-size: 24px;
+  padding: 16px 24px;
+  border: 3px solid var(--c-black);
+  background: var(--c-white);
+  color: var(--c-black);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.1s ease-in-out;
+  box-shadow: 4px 4px 0 0 var(--c-black);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.template-dropdown:hover {
+  background: var(--c-black);
+  color: var(--c-white);
+  box-shadow: 1px 1px 0 0 var(--c-black);
+  transform: translate(3px, 3px);
+}
+
+.template-dropdown:focus {
+  outline: none;
+  background: var(--c-black);
+  color: var(--c-white);
+  box-shadow: 1px 1px 0 0 var(--c-black);
+  transform: translate(3px, 3px);
+}
+
+.template-preview-card {
+  width: 100%;
+  max-width: 500px;
+  border: 3px solid var(--c-black);
+  background: var(--c-white);
+  padding: 20px;
+  margin-bottom: 30px;
+  box-sizing: border-box;
+  box-shadow: 4px 4px 0 0 var(--c-black);
+}
+
+.template-preview-card h3 {
+  font-size: 24px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.template-preview-card p {
+  font-size: 16px;
+  margin-bottom: 20px;
+  color: #666;
+}
+
+.template-specs {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+
+.spec-label {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--c-black);
+}
+
+.spec-value {
+  font-size: 16px;
+  color: #666;
+  text-transform: capitalize;
+}
+
+.continue-button {
+  font-family: var(--font-main);
+  font-size: 24px;
+  padding: 16px 32px;
+  border: 3px solid var(--c-black);
+  background: var(--c-white);
+  color: var(--c-black);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.1s ease-in-out;
+  box-shadow: 4px 4px 0 0 var(--c-black);
+  min-width: 300px;
+}
+
+.continue-button:hover:not(:disabled) {
+  background: var(--c-black);
+  color: var(--c-white);
+  box-shadow: 1px 1px 0 0 var(--c-black);
+  transform: translate(3px, 3px);
+}
+
+.continue-button:disabled {
+  background: #ccc;
+  color: #888;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
 }
 
 /* 2. Canvas Wrapper */

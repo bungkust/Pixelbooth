@@ -3,9 +3,23 @@ import { PhotoBooth, type PhotoBoothRef } from './PhotoBooth';
 import { Controls, type AppState } from './Controls';
 import { useWakeLock } from '../hooks/useWakeLock';
 
-interface PhotoBoothAppProps {}
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  width: number; // mm
+  height: number; // mm
+  photoCount: number;
+  layout: 'vertical' | 'horizontal' | 'grid';
+  thermalSize: '58mm' | '80mm';
+}
 
-export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = () => {
+interface PhotoBoothAppProps {
+  template: Template;
+  onBackToTemplate: () => void;
+}
+
+export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackToTemplate }) => {
   const [appState, setAppState] = useState<AppState>('PREVIEW');
   const [countdownText, setCountdownText] = useState('');
   const [, setFrames] = useState<any[]>([]);
@@ -27,14 +41,12 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = () => {
 
   const handleStart = () => {
     if (photoBoothRef.current) {
-      photoBoothRef.current.startCountdown(3);
+      photoBoothRef.current.startCountdown(template.photoCount);
     }
   };
 
   const handleRetake = () => {
-    if (photoBoothRef.current) {
-      photoBoothRef.current.resetToPreview();
-    }
+    onBackToTemplate();
   };
 
   const handleDownload = () => {
@@ -169,11 +181,12 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = () => {
     <>
       <div className="app-header">
         <h1 className="app-title">PIXEL BOOTH</h1>
+        <p className="template-info">Layout: {template.name}</p>
         <p className="app-description">
           SNAP & PRINT! PRESS START FOR A QUICK<br/>
           PHOTO SESSION, COUNTDOWN BEGINS IN...<br/>
-          3-2-1-SMILE! 3 PHOTOS WILL BE TAKEN<br/>
-          AUTOMATICALLY! YOUR PICS PRINT INSTANTLY!
+          3-2-1-SMILE! {template.photoCount} PHOTOS WILL BE TAKEN<br/>
+          AUTOMATICALLY! READY TO PRINT!
         </p>
       </div>
       
@@ -181,6 +194,7 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = () => {
         ref={photoBoothRef}
         state={appState}
         countdownText={countdownText}
+        template={template}
         onStateChange={handleStateChange}
         onFramesUpdate={handleFramesUpdate}
         onFinalCompositeUpdate={handleFinalCompositeUpdate}
