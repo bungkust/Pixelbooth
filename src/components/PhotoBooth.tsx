@@ -187,7 +187,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         autoCaptureLoop(p);
       }
     } else if (state === 'REVIEW') {
-      // Show final composite
+      // Show final composite scaled to fit canvas
       if (finalCompositeRef.current) {
         p.image(finalCompositeRef.current, 0, 0, p.width, p.height);
       }
