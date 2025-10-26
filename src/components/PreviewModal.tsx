@@ -4,14 +4,12 @@ interface PreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   imageDataURL: string | null;
-  templateName: string;
 }
 
 export const PreviewModal: React.FC<PreviewModalProps> = ({
   isOpen,
   onClose,
-  imageDataURL,
-  templateName
+  imageDataURL
 }) => {
   const [zoom, setZoom] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
@@ -104,16 +102,16 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
     if (isOpen) {
       const container = document.querySelector('.modal-body-fullscreen');
       if (container) {
-        container.addEventListener('wheel', handleWheel, { passive: false });
-        container.addEventListener('touchstart', handleTouchStart, { passive: false });
-        container.addEventListener('touchmove', handleTouchMove, { passive: false });
-        container.addEventListener('touchend', handleTouchEnd, { passive: false });
+        container.addEventListener('wheel', handleWheel as EventListener, { passive: false });
+        container.addEventListener('touchstart', handleTouchStart as EventListener, { passive: false });
+        container.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+        container.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false });
         
         return () => {
-          container.removeEventListener('wheel', handleWheel);
-          container.removeEventListener('touchstart', handleTouchStart);
-          container.removeEventListener('touchmove', handleTouchMove);
-          container.removeEventListener('touchend', handleTouchEnd);
+          container.removeEventListener('wheel', handleWheel as EventListener);
+          container.removeEventListener('touchstart', handleTouchStart as EventListener);
+          container.removeEventListener('touchmove', handleTouchMove as EventListener);
+          container.removeEventListener('touchend', handleTouchEnd as EventListener);
         };
       }
     }

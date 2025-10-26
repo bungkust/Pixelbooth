@@ -252,7 +252,6 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         imageDataURL={highResImageDataURL}
-        templateName={template.name}
       />
     </>
   );

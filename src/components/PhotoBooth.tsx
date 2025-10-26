@@ -59,7 +59,6 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   const shotsNeeded = template.photoCount;
   const previewWidth = 500;
   const previewHeight = 375;
-  const finalWidth = 1024;
 
   const setup = (p: any, canvasParentRef: Element) => {
     p5InstanceRef.current = p;
