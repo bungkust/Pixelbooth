@@ -1,3 +1,4 @@
+import p5 from 'p5';
 import { useRef, forwardRef, useImperativeHandle, useEffect } from 'react';
 import Sketch from 'react-p5';
 import { orderedDither } from '../utils/dithering';
@@ -21,8 +22,8 @@ interface PhotoBoothProps {
   countdownText: string;
   template: Template;
   onStateChange: (newState: AppState) => void;
-  onFramesUpdate: (frames: any[]) => void;
-  onFinalCompositeUpdate: (composite: any | null) => void;
+  onFramesUpdate: (frames: p5.Image[]) => void;
+  onFinalCompositeUpdate: (composite: p5.Graphics | null) => void;
   onCountdownTextUpdate: (text: string) => void;
   onCanvasResize: (width: number, height: number) => void;
   onCanvasModeChange: (isReviewMode: boolean) => void;
@@ -34,9 +35,19 @@ export interface PhotoBoothRef {
   downloadComposite: () => void;
   getFinalCompositeDataURL: () => string | null;
   getPhotoIdForPrint: () => string | null;
-  getP5Instance: () => any;
-  getFrames: () => any[];
+  getP5Instance: () => p5 | null;
+  getFrames: () => p5.Image[];
 }
+
+const PREVIEW_WIDTH = 500;
+const PREVIEW_HEIGHT = 375;
+const CAPTURE_INTERVAL = 2500; // 2.5 seconds
+const BEEP_INTERVAL = 800; // ms
+const LOG_INTERVAL = 500; // ms
+const MAX_RETRIES = 3;
+const CAMERA_RETRY_DELAY = 2000; // ms
+const SNAP_MESSAGE_DURATION = 500; // ms
+const COMPOSE_DELAY = 100; // ms
 
 export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   state,
@@ -49,42 +60,38 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   onCanvasResize,
   onCanvasModeChange
 }, ref) => {
-  const videoRef = useRef<any>(null);
-  const pgPreviewRef = useRef<any>(null);
-  const framesRef = useRef<any[]>([]);
-  const finalCompositeRef = useRef<any>(null);
-  const finalCompositeHighResRef = useRef<any>(null);
+  const videoRef = useRef<p5.Element | null>(null);
+  const pgPreviewRef = useRef<p5.Graphics | null>(null);
+  const framesRef = useRef<p5.Image[]>([]);
+  const finalCompositeRef = useRef<p5.Graphics | null>(null);
+  const finalCompositeHighResRef = useRef<p5.Graphics | null>(null);
   const currentPhotoIdRef = useRef<string | null>(null);
   const lastShotAtRef = useRef<number>(0);
-  const isCapturingRef = useRef<boolean>(false);
   const { initializeAudio, playCountdownBeep, playCaptureSound } = useAudio();
   const countdownEndAtRef = useRef<number>(0);
   const lastBeepTimeRef = useRef<number>(0);
   const lastLogTimeRef = useRef<number>(0);
-  const p5InstanceRef = useRef<any>(null);
+  const p5InstanceRef = useRef<p5 | null>(null);
   const retryCountRef = useRef<number>(0);
-  const maxRetries = 3;
   const cameraReadyRef = useRef<boolean>(false);
   const shotsNeeded = template.photoCount;
-  const previewWidth = 500;
-  const previewHeight = 375;
 
-  const setup = (p: any, canvasParentRef: Element) => {
+  const setup = (p: p5, canvasParentRef: Element) => {
     p5InstanceRef.current = p;
     
     // Initialize audio
     initializeAudio();
     
     // Create canvas with willReadFrequently for better performance
-    const canvas = p.createCanvas(previewWidth, previewHeight);
+    const canvas = p.createCanvas(PREVIEW_WIDTH, PREVIEW_HEIGHT);
     canvas.parent(canvasParentRef);
     canvas.elt.setAttribute('willReadFrequently', 'true');
     p.pixelDensity(1);
     
-    console.log('Canvas created:', previewWidth, 'x', previewHeight);
+    console.log('Canvas created:', PREVIEW_WIDTH, 'x', PREVIEW_HEIGHT);
 
     // Create preview buffer
-    pgPreviewRef.current = p.createGraphics(previewWidth, previewHeight);
+    pgPreviewRef.current = p.createGraphics(PREVIEW_WIDTH, PREVIEW_HEIGHT);
 
     // Reset state to ensure clean start
     framesRef.current = [];
@@ -92,7 +99,6 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     finalCompositeHighResRef.current = null;
     currentPhotoIdRef.current = null;
     lastShotAtRef.current = 0;
-    isCapturingRef.current = false;
     countdownEndAtRef.current = 0;
     lastBeepTimeRef.current = 0;
     lastLogTimeRef.current = 0;
@@ -100,15 +106,15 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     // Initialize video capture with proper error handling and retry mechanism
     const initializeCamera = () => {
       try {
-        console.log(`Attempting to initialize camera (attempt ${retryCountRef.current + 1}/${maxRetries})`);
+        console.log(`Attempting to initialize camera (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`);
         
         videoRef.current = p.createCapture(p.VIDEO, () => {
           console.log('Video stream acquired successfully.');
           
           if (videoRef.current) {
-            videoRef.current.size(previewWidth, previewHeight);
+            videoRef.current.size(PREVIEW_WIDTH, PREVIEW_HEIGHT);
             videoRef.current.hide();
-            console.log('Video resized to:', previewWidth, 'x', previewHeight);
+            console.log('Video resized to:', PREVIEW_WIDTH, 'x', PREVIEW_HEIGHT);
             
             // Reset retry count on success
             retryCountRef.current = 0;
@@ -126,7 +132,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
             
             // Check if video is actually working
             setTimeout(() => {
-              if (videoRef.current && videoRef.current.loadedmetadata) {
+              if (videoRef.current && (videoRef.current.elt as HTMLVideoElement).readyState >= 3) {
                 console.log('Camera initialized successfully');
                 cameraReadyRef.current = true;
                 onStateChange('PREVIEW');
@@ -139,12 +145,6 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
           }
         });
         
-        // Handle capture creation errors
-        videoRef.current.onError = (error: any) => {
-          console.error('Capture creation error:', error);
-          retryCamera();
-        };
-        
       } catch (error) {
         console.error('Error creating video capture:', error);
         retryCamera();
@@ -152,9 +152,9 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     };
     
     const retryCamera = () => {
-      if (retryCountRef.current < maxRetries) {
+      if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current++;
-        console.log(`Retrying camera initialization in 2 seconds... (${retryCountRef.current}/${maxRetries})`);
+        console.log(`Retrying camera initialization in 2 seconds... (${retryCountRef.current}/${MAX_RETRIES})`);
         
         // Clean up existing video
         if (videoRef.current) {
@@ -165,7 +165,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         // Retry after delay
         setTimeout(() => {
           initializeCamera();
-        }, 2000);
+        }, CAMERA_RETRY_DELAY);
       } else {
         console.error('Max retries reached. Camera initialization failed.');
         onStateChange('PREVIEW'); // Still show preview state even if camera fails
@@ -177,7 +177,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     p.noLoop(); // Don't start draw loop until camera is ready
   };
 
-  const draw = (p: any) => {
+  const draw = (p: p5) => {
     // Show loading state when camera is not ready
     if (!videoRef.current || !pgPreviewRef.current) {
       p.background(200); // Gray background
@@ -199,7 +199,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       // Show retry count if we're having issues
       if (retryCountRef.current > 0) {
         p.textSize(16);
-        p.text(`Retry ${retryCountRef.current}/${maxRetries}`, p.width/2, p.height/2 + 40);
+        p.text(`Retry ${retryCountRef.current}/${MAX_RETRIES}`, p.width/2, p.height/2 + 40);
       }
       return;
     }
@@ -212,7 +212,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       const pgPreview = pgPreviewRef.current;
       
       // 1. Draw video to buffer
-      pgPreview.image(video, 0, 0, previewWidth, previewHeight);
+      pgPreview.image(video, 0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
       // 2. Grayscale
       pgPreview.filter(p.GRAY);
       // 3. Bayer dithering for fast preview (only every few frames for performance)
@@ -283,7 +283,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     }
   };
 
-  const handleCountdown = (p: any) => {
+  const handleCountdown = (p: p5) => {
     const timeLeft = Math.ceil((countdownEndAtRef.current - p.millis()) / 1000);
     
     if (timeLeft > 0) {
@@ -292,7 +292,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       
       // Play beep sound only once per countdown number
       const now = p.millis();
-      if (now - lastBeepTimeRef.current > 800) { // Prevent multiple beeps
+      if (now - lastBeepTimeRef.current > BEEP_INTERVAL) { // Prevent multiple beeps
         playCountdownBeep();
         lastBeepTimeRef.current = now;
       }
@@ -307,44 +307,42 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     }
   };
 
-  const autoCaptureLoop = (p: any) => {
-    if (isCapturingRef.current) {
-      return; // Prevent multiple calls
+  const autoCaptureLoop = (p: p5) => {
+    if (state !== 'CAPTURING') {
+      return;
     }
     
-    const interval = 2500; // 2.5 second interval between photos
     const timeSinceLastShot = p.millis() - lastShotAtRef.current;
     
     // Only log every 500ms to reduce spam
     const now = p.millis();
-    if (!lastLogTimeRef.current || now - lastLogTimeRef.current > 500) {
+    if (!lastLogTimeRef.current || now - lastLogTimeRef.current > LOG_INTERVAL) {
       console.log('AutoCaptureLoop: Checking capture conditions', {
         framesLength: framesRef.current.length,
         shotsNeeded,
         timeSinceLastShot,
-        interval,
+        interval: CAPTURE_INTERVAL,
         lastShotAt: lastShotAtRef.current
       });
       lastLogTimeRef.current = now;
     }
 
     if (framesRef.current.length < shotsNeeded && 
-        (p.millis() - lastShotAtRef.current > interval || lastShotAtRef.current === 0)) {
+        (p.millis() - lastShotAtRef.current > CAPTURE_INTERVAL || lastShotAtRef.current === 0)) {
       
-      if (videoRef.current && videoRef.current.width > 0 && videoRef.current.height > 0) {
+      if (videoRef.current && (videoRef.current.elt as HTMLVideoElement).readyState >= 3) {
         console.log('AutoCaptureLoop: Starting photo capture');
-        isCapturingRef.current = true; // Set flag only when actually capturing
         
         // Capture raw image from video using consistent size
-        const rawShot = p.createImage(previewWidth, previewHeight);
+        const rawShot = p.createImage(PREVIEW_WIDTH, PREVIEW_HEIGHT);
         rawShot.copy(
           videoRef.current, 
           0, 0, 
-          previewWidth, 
-          previewHeight, 
+          PREVIEW_WIDTH, 
+          PREVIEW_HEIGHT, 
           0, 0, 
-          previewWidth, 
-          previewHeight
+          PREVIEW_WIDTH, 
+          PREVIEW_HEIGHT
         );
         
         // Convert to grayscale
@@ -362,29 +360,27 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         onCountdownTextUpdate(`SNAP ${framesRef.current.length + 1}/${shotsNeeded}`);
         setTimeout(() => {
           if (state === 'CAPTURING') onCountdownTextUpdate('');
-        }, 500);
+        }, SNAP_MESSAGE_DURATION);
 
         if (framesRef.current.length === shotsNeeded) {
           console.log('AutoCaptureLoop: All photos captured, switching to COMPOSING');
           onStateChange('COMPOSING');
           onCountdownTextUpdate('Merging...');
-          setTimeout(() => composeResult(p), 100);
+          setTimeout(() => composeResult(p), COMPOSE_DELAY);
         }
         
-        // Reset flag immediately after capture
-        isCapturingRef.current = false;
-        console.log('AutoCaptureLoop: Capture complete, flag reset');
+        console.log('AutoCaptureLoop: Capture complete');
       } else {
         console.log('AutoCaptureLoop: Video not ready', {
           videoExists: !!videoRef.current,
-          videoWidth: videoRef.current?.width,
-          videoHeight: videoRef.current?.height
+          videoWidth: (videoRef.current?.elt as HTMLVideoElement)?.videoWidth,
+          videoHeight: (videoRef.current?.elt as HTMLVideoElement)?.videoHeight
         });
       }
     }
   };
 
-  const composeResult = (p: any) => {
+  const composeResult = (p: p5) => {
     console.log('Composing result...');
     console.log('Frames count:', framesRef.current.length);
     console.log('Template:', template);
@@ -408,7 +404,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         // NEW: Save photo to IndexedDB
         try {
           console.log('Saving photo locally...');
-          const dataURL = compositeHighRes.canvas.toDataURL('image/png');
+          const dataURL = (compositeHighRes.canvas as HTMLCanvasElement).toDataURL('image/png');
           const photoRecord = await savePhotoLocally(dataURL);
           currentPhotoIdRef.current = photoRecord.id;
           console.log('Photo saved locally:', photoRecord.id);
@@ -422,8 +418,8 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         onCountdownTextUpdate('');
         
         // Keep canvas size fixed for review mode (same as preview)
-        p.resizeCanvas(previewWidth, previewHeight);
-        onCanvasResize(previewWidth, previewHeight);
+        p.resizeCanvas(PREVIEW_WIDTH, PREVIEW_HEIGHT);
+        onCanvasResize(PREVIEW_WIDTH, PREVIEW_HEIGHT);
         onCanvasModeChange(true);
         
         console.log('Composing complete. Ready for review.');
@@ -444,22 +440,6 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
 
   // Expose methods to parent component
   // Cleanup and state management
-  useEffect(() => {
-    // Reset state when component mounts or state changes
-    if (state === 'PREVIEW') {
-      framesRef.current = [];
-      finalCompositeRef.current = null;
-      finalCompositeHighResRef.current = null;
-      currentPhotoIdRef.current = null;
-      lastShotAtRef.current = 0;
-      isCapturingRef.current = false;
-      countdownEndAtRef.current = 0;
-      lastBeepTimeRef.current = 0;
-      lastLogTimeRef.current = 0;
-      cameraReadyRef.current = false;
-    }
-  }, [state]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -509,12 +489,17 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         framesRef.current = [];
         finalCompositeRef.current = null;
         finalCompositeHighResRef.current = null;
-        isCapturingRef.current = false;
+        currentPhotoIdRef.current = null;
+        lastShotAtRef.current = 0;
+        countdownEndAtRef.current = 0;
+        lastBeepTimeRef.current = 0;
+        lastLogTimeRef.current = 0;
+
         onFramesUpdate([]);
         onFinalCompositeUpdate(null);
         
-        p5InstanceRef.current.resizeCanvas(previewWidth, previewHeight);
-        onCanvasResize(previewWidth, previewHeight);
+        p5InstanceRef.current.resizeCanvas(PREVIEW_WIDTH, PREVIEW_HEIGHT);
+        onCanvasResize(PREVIEW_WIDTH, PREVIEW_HEIGHT);
         onCanvasModeChange(false);
         
         onStateChange('PREVIEW');
@@ -531,7 +516,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     },
     getFinalCompositeDataURL: () => {
       if (finalCompositeHighResRef.current) {
-        return finalCompositeHighResRef.current.canvas.toDataURL('image/png');
+        return (finalCompositeHighResRef.current.canvas as HTMLCanvasElement).toDataURL('image/png');
       }
       return null;
     },
