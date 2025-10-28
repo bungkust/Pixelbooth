@@ -35,6 +35,35 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
   const [isBluetoothConnected, setIsBluetoothConnected] = useState(false);
   const [bluetoothError, setBluetoothError] = useState<string>('');
   const [printerInfo, setPrinterInfo] = useState<{ name: string; width: number; dpi: number } | null>(null);
+
+  // Helper: compose final image (with QR if available) and return dataURL
+  const composeImageForPrint = async (): Promise<string | null> => {
+    if (!photoBoothRef.current) return null;
+    let dataURL: string | null = null;
+    const photoId = photoBoothRef.current.getPhotoIdForPrint();
+    if (photoId) {
+      const downloadURL = getDownloadURL(photoId);
+      const qrCodeDataURL = await generateQRCodeDataURL(downloadURL);
+      if (qrCodeDataURL) {
+        const { composeResult } = await import('../utils/photoComposer');
+        const p5Instance = photoBoothRef.current.getP5Instance?.();
+        const frames = photoBoothRef.current.getFrames?.();
+        if (p5Instance && frames) {
+          const printComposite = await composeResult(
+            p5Instance,
+            frames,
+            template,
+            qrCodeDataURL
+          );
+          dataURL = printComposite.canvas.toDataURL('image/png');
+        }
+      }
+    }
+    if (!dataURL) {
+      dataURL = photoBoothRef.current.getFinalCompositeDataURL();
+    }
+    return dataURL;
+  };
   
   const photoBoothRef = useRef<PhotoBoothRef>(null);
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
@@ -128,44 +157,7 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
         return;
       }
 
-      // Get photo ID
-      const photoId = photoBoothRef.current.getPhotoIdForPrint();
-      console.log('Photo ID for print:', photoId);
-      
-      let dataURL: string | null = null;
-
-      if (photoId) {
-        // Generate QR code for download page
-        const downloadURL = getDownloadURL(photoId);
-        console.log('Download URL:', downloadURL);
-        const qrCodeDataURL = await generateQRCodeDataURL(downloadURL);
-        console.log('QR Code generated:', !!qrCodeDataURL);
-        
-        if (qrCodeDataURL) {
-          // Compose print version with QR code
-          const { composeResult } = await import('../utils/photoComposer');
-          const p5Instance = photoBoothRef.current.getP5Instance?.();
-          const frames = photoBoothRef.current.getFrames?.();
-          
-          console.log('P5 instance:', !!p5Instance, 'Frames:', frames?.length);
-          
-          if (p5Instance && frames) {
-            const printComposite = await composeResult(
-              p5Instance,
-              frames,
-              template,
-              qrCodeDataURL
-            );
-            dataURL = printComposite.canvas.toDataURL('image/png');
-            console.log('Print composite with QR created:', !!dataURL);
-          }
-        }
-      }
-      
-      // Fallback to regular composite
-      if (!dataURL) {
-        dataURL = photoBoothRef.current.getFinalCompositeDataURL();
-      }
+      const dataURL = await composeImageForPrint();
 
       if (!dataURL) {
         console.error('Final composite not found for printing');
@@ -188,7 +180,7 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
         return;
       }
       
-      // Create print-friendly HTML
+      // Create print-friendly HTML (58mm thermal paper)
       const printHTML = `
         <!DOCTYPE html>
         <html>
@@ -196,8 +188,8 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
           <title>Pixel Booth Print</title>
           <style>
             @page {
-              size: A4;
-              margin: 10mm;
+              size: 58mm auto; /* Thermal roll width */
+              margin: 3mm;     /* Small margins */
             }
             body {
               margin: 0;
@@ -206,13 +198,14 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
               background: white;
             }
             .print-container {
-              width: 100%;
+              width: 58mm;       /* lock container to paper width */
               display: flex;
               flex-direction: column;
               align-items: center;
+              margin: 0 auto;
             }
             .print-image {
-              max-width: 100%;
+              width: 100%;
               height: auto;
               image-rendering: pixelated;
               image-rendering: -moz-crisp-edges;
@@ -226,8 +219,8 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
             }
             @media print {
               body { margin: 0; }
-              .print-container { width: 100%; }
-              .print-image { max-width: 100%; }
+              .print-container { width: 58mm; }
+              .print-image { width: 100%; }
             }
           </style>
         </head>
@@ -257,6 +250,27 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
     } catch (error) {
       console.error('Print failed:', error);
       alert('Gagal mencetak. Silakan coba lagi.');
+    }
+  };
+
+  const handleShareToPrintApp = async () => {
+    try {
+      const dataURL = await composeImageForPrint();
+      if (!dataURL) return alert('Gambar belum siap untuk dibagikan');
+      if (navigator.share && (navigator as any).canShare) {
+        const resp = await fetch(dataURL);
+        const blob = await resp.blob();
+        const file = new File([blob], 'pixelbooth-58mm.png', { type: 'image/png' });
+        const shareData: any = { files: [file], title: 'Pixel Booth', text: 'Print via thermal printer' };
+        if ((navigator as any).canShare(shareData)) {
+          await (navigator as any).share(shareData);
+          return;
+        }
+      }
+      await handlePrint();
+    } catch (e) {
+      console.error('Share print error:', e);
+      alert('Gagal membuka aplikasi print. Coba gunakan tombol PRINT.');
     }
   };
 
@@ -370,6 +384,9 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
           </div>
         )}
         {bluetoothError && <div className="bluetooth-error">{bluetoothError}</div>}
+        {/* Share/Print helpers */}
+        <button className="bluetooth-btn" onClick={handlePrint}>PRINT (Dialog)</button>
+        <button className="bluetooth-btn" onClick={handleShareToPrintApp}>Share to Print App</button>
       </div>
       
       <div onClick={handleCanvasClick}>
