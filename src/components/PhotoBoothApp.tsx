@@ -279,7 +279,7 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
   // Open ESC POS Print Service app via Android intent (no chooser)
   const openEscPosApp = () => {
     try {
-      const pkg = 'com.fastriver.posprinterdriver';
+      const pkg = 'com.loopedlabs.escposprintservice';
       const intentUrl = 'intent:#Intent;scheme=escposprintservice;package=' + pkg + ';end';
       // Try open the app directly
       window.location.href = intentUrl;
