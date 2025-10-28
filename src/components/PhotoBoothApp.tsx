@@ -257,12 +257,14 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
     try {
       const dataURL = await composeImageForPrint();
       if (!dataURL) return alert('Gambar belum siap untuk dibagikan');
-      if (navigator.share && (navigator as any).canShare) {
+      if (typeof (navigator as any).share === 'function') {
         const resp = await fetch(dataURL);
         const blob = await resp.blob();
         const file = new File([blob], 'pixelbooth-58mm.png', { type: 'image/png' });
         const shareData: any = { files: [file], title: 'Pixel Booth', text: 'Print via thermal printer' };
-        if ((navigator as any).canShare(shareData)) {
+        const canShareFn = (navigator as any).canShare;
+        const canShare = typeof canShareFn === 'function' ? canShareFn.call(navigator, shareData) : false;
+        if (canShare) {
           await (navigator as any).share(shareData);
           return;
         }
