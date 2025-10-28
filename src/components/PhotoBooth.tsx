@@ -76,7 +76,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
   const cameraReadyRef = useRef<boolean>(false);
   const shotsNeeded = template.photoCount;
 
-  const setup = (p: p5, canvasParentRef: Element) => {
+  const setup = (p: any, canvasParentRef: Element) => {
     p5InstanceRef.current = p;
     
     // Initialize audio
@@ -108,7 +108,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
       try {
         console.log(`Attempting to initialize camera (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`);
         
-        videoRef.current = p.createCapture(p.VIDEO, () => {
+        videoRef.current = p.createCapture({ video: true }, () => {
           console.log('Video stream acquired successfully.');
           
           if (videoRef.current) {
@@ -177,7 +177,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     p.noLoop(); // Don't start draw loop until camera is ready
   };
 
-  const draw = (p: p5) => {
+  const draw = (p: any) => {
     // Show loading state when camera is not ready
     if (!videoRef.current || !pgPreviewRef.current) {
       p.background(200); // Gray background
@@ -404,7 +404,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
         // NEW: Save photo to IndexedDB
         try {
           console.log('Saving photo locally...');
-          const dataURL = (compositeHighRes.canvas as HTMLCanvasElement).toDataURL('image/png');
+          const dataURL = (compositeHighRes as any).canvas.toDataURL('image/png');
           const photoRecord = await savePhotoLocally(dataURL);
           currentPhotoIdRef.current = photoRecord.id;
           console.log('Photo saved locally:', photoRecord.id);
@@ -516,7 +516,7 @@ export const PhotoBooth = forwardRef<PhotoBoothRef, PhotoBoothProps>(({
     },
     getFinalCompositeDataURL: () => {
       if (finalCompositeHighResRef.current) {
-        return (finalCompositeHighResRef.current.canvas as HTMLCanvasElement).toDataURL('image/png');
+        return (finalCompositeHighResRef.current as any).canvas.toDataURL('image/png');
       }
       return null;
     },

@@ -4,6 +4,7 @@ import { Controls } from './Controls';
 import { PreviewModal } from './PreviewModal';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { generateQRCodeDataURL, getDownloadURL } from '../utils/qrCodeGenerator';
+import { UniversalBluetoothPrinterService } from '../services/universalBluetoothPrinterService';
 
 interface Template {
   id: string;
@@ -30,6 +31,10 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
   const [, setIsReviewMode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [highResImageDataURL, setHighResImageDataURL] = useState<string | null>(null);
+  const [bluetoothPrinter, setBluetoothPrinter] = useState<UniversalBluetoothPrinterService | null>(null);
+  const [isBluetoothConnected, setIsBluetoothConnected] = useState(false);
+  const [bluetoothError, setBluetoothError] = useState<string>('');
+  const [printerInfo, setPrinterInfo] = useState<{ name: string; width: number; dpi: number } | null>(null);
   
   const photoBoothRef = useRef<PhotoBoothRef>(null);
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
@@ -167,6 +172,15 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
         return;
       }
 
+      // Try Bluetooth printing first
+      if (isBluetoothConnected && bluetoothPrinter) {
+        const ok = await bluetoothPrinter.printImage(dataURL);
+        if (ok) {
+          alert('Printed via Bluetooth');
+          return;
+        }
+      }
+
       // Create a new window for printing
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
@@ -246,6 +260,42 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
     }
   };
 
+  const handleConnectBluetooth = async () => {
+    try {
+      setBluetoothError('');
+      if (!('bluetooth' in navigator)) {
+        setBluetoothError('Web Bluetooth not supported');
+        alert('Web Bluetooth not supported in this browser');
+        return;
+      }
+      const svc = new UniversalBluetoothPrinterService();
+      const connected = await svc.connect();
+      if (connected) {
+        setBluetoothPrinter(svc);
+        setIsBluetoothConnected(true);
+        setPrinterInfo(svc.getPrinterInfo());
+        alert(`Connected to ${svc.getPrinterInfo()?.name || 'Printer'}`);
+      } else {
+        setBluetoothError('Failed to connect to printer');
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setBluetoothError(msg);
+      alert('Bluetooth connect error: ' + msg);
+    }
+  };
+
+  const handleDisconnectBluetooth = async () => {
+    try {
+      await bluetoothPrinter?.disconnect();
+    } finally {
+      setBluetoothPrinter(null);
+      setIsBluetoothConnected(false);
+      setPrinterInfo(null);
+      setBluetoothError('');
+    }
+  };
+
   const handleStateChange = (newState: AppState) => {
     setAppState(newState);
     
@@ -296,6 +346,30 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
           3-2-1-SMILE! {template.photoCount} PHOTOS WILL BE TAKEN<br/>
           AUTOMATICALLY! READY TO PRINT!
         </p>
+      </div>
+
+      {/* Bluetooth controls */}
+      <div className="bluetooth-controls">
+        {!isBluetoothConnected ? (
+          <button
+            className="bluetooth-btn"
+            onClick={handleConnectBluetooth}
+            disabled={!('bluetooth' in navigator)}
+          >
+            {('bluetooth' in navigator) ? 'Connect Bluetooth Printer' : 'Bluetooth Not Supported'}
+          </button>
+        ) : (
+          <div className="bluetooth-status">
+            <div className="printer-info">
+              <span>Connected: {printerInfo?.name}</span>
+              {printerInfo && (
+                <span className="printer-specs">{printerInfo.width}px · {printerInfo.dpi} DPI</span>
+              )}
+            </div>
+            <button className="disconnect-btn" onClick={handleDisconnectBluetooth}>Disconnect</button>
+          </div>
+        )}
+        {bluetoothError && <div className="bluetooth-error">{bluetoothError}</div>}
       </div>
       
       <div onClick={handleCanvasClick}>

@@ -1028,6 +1028,89 @@ button:disabled {
   border-color: #666;
 }
 
+/* Bluetooth controls */
+.bluetooth-controls {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1200;
+}
+
+.bluetooth-btn {
+  background: #007bff;
+  color: #fff;
+  border: 3px solid var(--c-black);
+  box-shadow: 4px 4px 0 0 var(--c-black);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: var(--font-main);
+  cursor: pointer;
+}
+
+.bluetooth-btn:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.bluetooth-status {
+  background: #28a745;
+  color: #fff;
+  border: 3px solid var(--c-black);
+  box-shadow: 4px 4px 0 0 var(--c-black);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.printer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.printer-specs {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.disconnect-btn {
+  background: #dc3545;
+  color: #fff;
+  border: 3px solid var(--c-black);
+  box-shadow: 4px 4px 0 0 var(--c-black);
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.bluetooth-error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 3px solid var(--c-black);
+  box-shadow: 4px 4px 0 0 var(--c-black);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .bluetooth-controls {
+    top: 8px;
+    right: 8px;
+    gap: 6px;
+  }
+  .bluetooth-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  .bluetooth-status {
+    padding: 8px 10px;
+  }
+}
+
 /* Admin Page - Tab-based Layout with Bottom Navigation */
 .admin-page {
   position: fixed;
