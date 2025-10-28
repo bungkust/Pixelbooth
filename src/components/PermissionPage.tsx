@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 
 interface PermissionPageProps {
   onPermissionGranted: () => void;
+  isAdminPage?: boolean; // Add this prop
 }
 
-export const PermissionPage: React.FC<PermissionPageProps> = ({ onPermissionGranted }) => {
+export const PermissionPage: React.FC<PermissionPageProps> = ({ onPermissionGranted, isAdminPage = false }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(true);
@@ -19,8 +20,8 @@ export const PermissionPage: React.FC<PermissionPageProps> = ({ onPermissionGran
       // Check if camera permission is already granted
       const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
       
-      if (result.state === 'granted') {
-        // Permission already granted, proceed to photo booth
+      if (result.state === 'granted' && !isAdminPage) {
+        // Permission already granted, proceed to photo booth (but not if we're on admin page)
         onPermissionGranted();
         return;
       }
@@ -89,6 +90,24 @@ export const PermissionPage: React.FC<PermissionPageProps> = ({ onPermissionGran
             {error}
           </p>
         )}
+        
+        {/* Admin Access Button */}
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button 
+            onClick={() => window.location.href = '/admin'}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              background: '#6c757d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Admin Panel
+          </button>
+        </div>
       </div>
     </div>
   );

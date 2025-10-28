@@ -19,9 +19,29 @@ interface TemplateSelectorProps {
 
 const templates: Template[] = [
   {
+    id: 'single-photo',
+    name: 'Single Portrait',
+    description: '1 large photo in portrait orientation - perfect for individual shots',
+    width: 58,
+    height: 80,
+    photoCount: 1,
+    layout: 'vertical',
+    thermalSize: '58mm'
+  },
+  {
+    id: 'strip-horizontal',
+    name: 'Double Strip',
+    description: '2 photos stacked vertically - great for couples or friends',
+    width: 58,
+    height: 120,
+    photoCount: 2,
+    layout: 'vertical',
+    thermalSize: '58mm'
+  },
+  {
     id: 'strip-vertical',
     name: 'Classic Strip',
-    description: '3 photos stacked vertically',
+    description: '3 photos stacked vertically - traditional photo booth style',
     width: 58,
     height: 180,
     photoCount: 3,
@@ -29,19 +49,9 @@ const templates: Template[] = [
     thermalSize: '58mm'
   },
   {
-    id: 'strip-horizontal',
-    name: 'Side by Side',
-    description: '2 photos side by side',
-    width: 58,
-    height: 120,
-    photoCount: 2,
-    layout: 'horizontal',
-    thermalSize: '58mm'
-  },
-  {
     id: 'strip-double',
-    name: 'Double Strip',
-    description: '4 photos in 2 rows',
+    name: 'Quad Strip',
+    description: '4 photos in 2x2 grid - perfect for group photos',
     width: 58,
     height: 200,
     photoCount: 4,
@@ -107,9 +117,10 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onTemplateSe
                 </div>
               </div>
               <div className="spec-description">
-                {selectedTemplate.layout === 'vertical' && 'Photos will be stacked vertically in a single column'}
-                {selectedTemplate.layout === 'horizontal' && 'Photos will be arranged side by side in a single row'}
-                {selectedTemplate.layout === 'grid' && 'Photos will be arranged in a grid pattern (2x2 for 4 photos)'}
+                {selectedTemplate.layout === 'vertical' && selectedTemplate.photoCount === 1 && 'Perfect for individual portraits and solo shots'}
+                {selectedTemplate.layout === 'vertical' && selectedTemplate.photoCount > 1 && 'Traditional photo booth style with photos stacked vertically'}
+                {selectedTemplate.layout === 'horizontal' && 'Great for couples, friends, or side-by-side poses'}
+                {selectedTemplate.layout === 'grid' && 'Ideal for group photos and family shots in a neat 2x2 arrangement'}
               </div>
             </div>
           </div>

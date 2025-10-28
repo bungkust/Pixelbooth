@@ -1,6 +1,5 @@
 import React from 'react';
-
-export type AppState = 'IDLE' | 'PREVIEW' | 'COUNTDOWN' | 'CAPTURING' | 'COMPOSING' | 'REVIEW';
+import type { AppState } from './PhotoBooth';
 
 interface ControlsProps {
   state: AppState;
@@ -17,29 +16,35 @@ export const Controls: React.FC<ControlsProps> = ({
   onDownload,
   onPrint
 }) => {
-  return (
-    <div id="controls">
-      {state === 'PREVIEW' && (
-        <button id="startBtn" onClick={onStart}>
-          Start
+  if (state === 'PREVIEW') {
+    return (
+      <div className="controls">
+        <button className="start-button" onClick={onStart}>
+          START
         </button>
-      )}
-      
-      {state === 'REVIEW' && (
-        <>
-          <div className="button-row">
-            <button id="retakeBtn" onClick={onRetake}>
-              Ulangi
-            </button>
-            <button id="downloadBtn" onClick={onDownload}>
-              Download
-            </button>
-          </div>
-          <button id="printBtn" onClick={onPrint}>
-            Print
+      </div>
+    );
+  }
+
+  if (state === 'REVIEW') {
+    return (
+      <div className="controls">
+        <div className="button-row">
+          <button className="retake-button" onClick={onRetake}>
+            RETAKE
           </button>
-        </>
-      )}
-    </div>
-  );
+          <button className="download-button" onClick={onDownload}>
+            DOWNLOAD
+          </button>
+        </div>
+        <div className="button-row">
+          <button className="print-button" onClick={onPrint}>
+            PRINT
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };

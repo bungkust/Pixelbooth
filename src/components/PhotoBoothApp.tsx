@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { PhotoBooth, type PhotoBoothRef } from './PhotoBooth';
-import { Controls, type AppState } from './Controls';
+import { PhotoBooth, type PhotoBoothRef, type AppState } from './PhotoBooth';
+import { Controls } from './Controls';
 import { PreviewModal } from './PreviewModal';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { generateQRCodeDataURL, getDownloadURL } from '../utils/qrCodeGenerator';
 
 interface Template {
   id: string;
@@ -44,7 +45,7 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
 
   const handleStart = () => {
     if (photoBoothRef.current) {
-      photoBoothRef.current.startCountdown(template.photoCount);
+      photoBoothRef.current.startCountdown(3);
     }
   };
 
@@ -52,12 +53,54 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
     onBackToTemplate();
   };
 
-  const handleCanvasClick = () => {
+  const handleCanvasClick = async () => {
     if (appState === 'REVIEW' && photoBoothRef.current) {
-      const highResDataURL = photoBoothRef.current.getFinalCompositeDataURL();
-      if (highResDataURL) {
-        setHighResImageDataURL(highResDataURL);
-        setIsModalOpen(true);
+      const photoId = photoBoothRef.current.getPhotoIdForPrint?.();
+      if (photoId) {
+        // Generate QR code for download page
+        const downloadURL = getDownloadURL(photoId);
+        console.log('Download URL for modal:', downloadURL);
+        const qrCodeDataURL = await generateQRCodeDataURL(downloadURL);
+        console.log('QR Code generated for modal:', !!qrCodeDataURL);
+        
+        if (qrCodeDataURL) {
+          // Compose modal version with QR code
+          const { composeResult } = await import('../utils/photoComposer');
+          const p5Instance = photoBoothRef.current.getP5Instance?.();
+          const frames = photoBoothRef.current.getFrames?.();
+          
+          console.log('P5 instance for modal:', !!p5Instance, 'Frames:', frames?.length);
+          
+          if (p5Instance && frames) {
+            const modalComposite = await composeResult(
+              p5Instance,
+              frames,
+              template,
+              qrCodeDataURL
+            );
+            
+            if (modalComposite) {
+              const modalDataURL = modalComposite.canvas.toDataURL('image/png');
+              setHighResImageDataURL(modalDataURL);
+              setIsModalOpen(true);
+              console.log('Modal opened with QR code');
+            }
+          }
+        } else {
+          // Fallback to high-res without QR code
+          const highResDataURL = photoBoothRef.current.getFinalCompositeDataURL();
+          if (highResDataURL) {
+            setHighResImageDataURL(highResDataURL);
+            setIsModalOpen(true);
+          }
+        }
+      } else {
+        // Fallback to high-res without QR code
+        const highResDataURL = photoBoothRef.current.getFinalCompositeDataURL();
+        if (highResDataURL) {
+          setHighResImageDataURL(highResDataURL);
+          setIsModalOpen(true);
+        }
       }
     }
   };
@@ -75,13 +118,50 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
 
   const handlePrint = async () => {
     try {
-      // Get the final composite data URL (same as download)
       if (!photoBoothRef.current) {
         console.error('PhotoBooth ref not found');
         return;
       }
 
-      const dataURL = photoBoothRef.current.getFinalCompositeDataURL();
+      // Get photo ID
+      const photoId = photoBoothRef.current.getPhotoIdForPrint();
+      console.log('Photo ID for print:', photoId);
+      
+      let dataURL: string | null = null;
+
+      if (photoId) {
+        // Generate QR code for download page
+        const downloadURL = getDownloadURL(photoId);
+        console.log('Download URL:', downloadURL);
+        const qrCodeDataURL = await generateQRCodeDataURL(downloadURL);
+        console.log('QR Code generated:', !!qrCodeDataURL);
+        
+        if (qrCodeDataURL) {
+          // Compose print version with QR code
+          const { composeResult } = await import('../utils/photoComposer');
+          const p5Instance = photoBoothRef.current.getP5Instance?.();
+          const frames = photoBoothRef.current.getFrames?.();
+          
+          console.log('P5 instance:', !!p5Instance, 'Frames:', frames?.length);
+          
+          if (p5Instance && frames) {
+            const printComposite = await composeResult(
+              p5Instance,
+              frames,
+              template,
+              qrCodeDataURL
+            );
+            dataURL = printComposite.canvas.toDataURL('image/png');
+            console.log('Print composite with QR created:', !!dataURL);
+          }
+        }
+      }
+      
+      // Fallback to regular composite
+      if (!dataURL) {
+        dataURL = photoBoothRef.current.getFinalCompositeDataURL();
+      }
+
       if (!dataURL) {
         console.error('Final composite not found for printing');
         return;
