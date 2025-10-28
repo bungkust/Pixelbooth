@@ -276,6 +276,24 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
     }
   };
 
+  // Open ESC POS Print Service app via Android intent (no chooser)
+  const openEscPosApp = () => {
+    try {
+      const pkg = 'com.fastriver.posprinterdriver';
+      const intentUrl = 'intent:#Intent;scheme=escposprintservice;package=' + pkg + ';end';
+      // Try open the app directly
+      window.location.href = intentUrl;
+      // Fallback: open Play Store if not installed
+      setTimeout(() => {
+        try {
+          window.location.href = 'market://details?id=' + pkg;
+        } catch {}
+      }, 800);
+    } catch (e) {
+      console.error('Open ESC POS app failed', e);
+    }
+  };
+
   const handleConnectBluetooth = async () => {
     try {
       setBluetoothError('');
@@ -389,6 +407,7 @@ export const PhotoBoothApp: React.FC<PhotoBoothAppProps> = ({ template, onBackTo
         {/* Share/Print helpers */}
         <button className="bluetooth-btn" onClick={handlePrint}>PRINT (Dialog)</button>
         <button className="bluetooth-btn" onClick={handleShareToPrintApp}>Share to Print App</button>
+        <button className="bluetooth-btn" onClick={openEscPosApp}>Open ESC POS Print Service</button>
       </div>
       
       <div onClick={handleCanvasClick}>
