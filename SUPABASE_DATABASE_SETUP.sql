@@ -185,4 +185,18 @@ WHERE tablename IN ('sessions', 'photos');
 4. **Auto-cleanup**: Storage files deleted after 5 days, DB records after 30 days
 5. **RLS Policies**: Allow public access for photo booth functionality
 
-Run these SQL commands in your Supabase SQL Editor to set up the complete database structure.
+---
+
+## Security Hardening (apply in Supabase SQL editor)
+
+```sql
+-- Ensure bucket remains private and restrict anon access
+-- Revoke broad access for anon to storage.objects (review project role names)
+-- REVOKE ALL ON storage.objects FROM anon;
+
+-- Prefer signed URLs for read; avoid public bucket
+-- Reduce signed URL TTL at application layer if possible
+
+-- If restricting client uploads, consider limiting by bucket and file size
+-- and using service role for upload operations only.
+```

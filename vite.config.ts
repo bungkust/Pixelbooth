@@ -4,6 +4,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    sourcemap: false,
+  },
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   plugins: [
     react(),
     VitePWA({
@@ -19,18 +25,9 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          {
-            src: 'https://placehold.co/192x192/000000/FFFFFF?text=PIXEL',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: 'https://placehold.co/512x512/000000/FFFFFF?text=PIXEL',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
+          // Use local assets to comply with CSP (place these in public/)
+          { src: '/favicon.ico', sizes: 'any', type: 'image/x-icon', purpose: 'any' },
+          { src: '/vite.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }
         ]
       },
       workbox: {
